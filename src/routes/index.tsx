@@ -314,6 +314,38 @@ function Index() {
               </button>
             ))}
           </div>
+          {history.length > 0 && (
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-sm font-semibold">Recently used</h3>
+                <button
+                  type="button"
+                  onClick={clearHistory}
+                  className="text-xs text-muted-foreground underline underline-offset-2"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {history.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setSpeed(h)}
+                    aria-label={`Set speed to ${h}x`}
+                    className={`min-h-11 rounded-xl border px-4 text-sm font-semibold tabular-nums transition-colors ${
+                      Math.abs(speed - h) < 0.001
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-border bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {h}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground">
             Your speed is remembered and reapplied to the next video.
           </p>
