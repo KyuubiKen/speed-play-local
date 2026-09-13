@@ -33,7 +33,9 @@ export const Route = createFileRoute("/")({
 });
 
 const SPEED_KEY = "vsp.speed";
+const HISTORY_KEY = "vsp.speedHistory";
 const PRESETS = [0.5, 1, 1.5, 2];
+const MAX_HISTORY = 8;
 
 type Status = { kind: "idle" | "info" | "ok" | "error"; text: string };
 
@@ -60,11 +62,25 @@ function Index() {
     kind: "idle",
     text: "Choose a video from your phone to begin.",
   });
+  const [history, setHistory] = useState<number[]>([]);
 
-  // restore saved speed
+  // restore saved speed + history
   useEffect(() => {
     const saved = Number(localStorage.getItem(SPEED_KEY));
     if (saved >= 0.25 && saved <= 3) setSpeed(saved);
+    try {
+      const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+      if (Array.isArray(raw)) {
+        setHistory(
+          raw
+            .map(Number)
+            .filter((n) => isFinite(n) && n >= 0.25 && n <= 3)
+            .slice(0, MAX_HISTORY),
+        );
+      }
+    } catch {
+      /* ignore corrupt history */
+    }
   }, []);
 
   // apply + persist speed (preserved across video changes)
@@ -72,6 +88,27 @@ function Index() {
     localStorage.setItem(SPEED_KEY, String(speed));
     if (videoRef.current) videoRef.current.playbackRate = speed;
   }, [speed, fileName]);
+
+  // remember speeds once they settle
+  useEffect(() => {
+    const value = Number(speed.toFixed(2));
+    const t = setTimeout(() => {
+      setHistory((prev) => {
+        const next = [value, ...prev.filter((n) => Math.abs(n - value) > 0.001)].slice(
+          0,
+          MAX_HISTORY,
+        );
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [speed]);
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
+  };
 
   useEffect(() => {
     return () => {
@@ -277,6 +314,38 @@ function Index() {
               </button>
             ))}
           </div>
+          {history.length > 0 && (
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-sm font-semibold">Recently used</h3>
+                <button
+                  type="button"
+                  onClick={clearHistory}
+                  className="text-xs text-muted-foreground underline underline-offset-2"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {history.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setSpeed(h)}
+                    aria-label={`Set speed to ${h}x`}
+                    className={`min-h-11 rounded-xl border px-4 text-sm font-semibold tabular-nums transition-colors ${
+                      Math.abs(speed - h) < 0.001
+                        ? "border-primary bg-primary/20 text-primary"
+                        : "border-border bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {h}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground">
             Your speed is remembered and reapplied to the next video.
           </p>
