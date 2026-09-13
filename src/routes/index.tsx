@@ -62,11 +62,25 @@ function Index() {
     kind: "idle",
     text: "Choose a video from your phone to begin.",
   });
+  const [history, setHistory] = useState<number[]>([]);
 
-  // restore saved speed
+  // restore saved speed + history
   useEffect(() => {
     const saved = Number(localStorage.getItem(SPEED_KEY));
     if (saved >= 0.25 && saved <= 3) setSpeed(saved);
+    try {
+      const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
+      if (Array.isArray(raw)) {
+        setHistory(
+          raw
+            .map(Number)
+            .filter((n) => isFinite(n) && n >= 0.25 && n <= 3)
+            .slice(0, MAX_HISTORY),
+        );
+      }
+    } catch {
+      /* ignore corrupt history */
+    }
   }, []);
 
   // apply + persist speed (preserved across video changes)
@@ -74,6 +88,27 @@ function Index() {
     localStorage.setItem(SPEED_KEY, String(speed));
     if (videoRef.current) videoRef.current.playbackRate = speed;
   }, [speed, fileName]);
+
+  // remember speeds once they settle
+  useEffect(() => {
+    const value = Number(speed.toFixed(2));
+    const t = setTimeout(() => {
+      setHistory((prev) => {
+        const next = [value, ...prev.filter((n) => Math.abs(n - value) > 0.001)].slice(
+          0,
+          MAX_HISTORY,
+        );
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        return next;
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [speed]);
+
+  const clearHistory = () => {
+    setHistory([]);
+    localStorage.removeItem(HISTORY_KEY);
+  };
 
   useEffect(() => {
     return () => {
