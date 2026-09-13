@@ -33,7 +33,9 @@ export const Route = createFileRoute("/")({
 });
 
 const SPEED_KEY = "vsp.speed";
+const HISTORY_KEY = "vsp.speedHistory";
 const PRESETS = [0.5, 1, 1.5, 2];
+const MAX_HISTORY = 8;
 
 type Status = { kind: "idle" | "info" | "ok" | "error"; text: string };
 
