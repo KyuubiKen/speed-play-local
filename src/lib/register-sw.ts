@@ -1,4 +1,8 @@
-const SW_URL = "/sw.js";
+function baseUrl(): string {
+  // Works at a domain root and at a GitHub Pages subpath (/repo-name/).
+  const base = document.baseURI || window.location.href;
+  return base.endsWith("/") ? base : base.slice(0, base.lastIndexOf("/") + 1);
+}
 
 function isBlockedContext(): boolean {
   if (!import.meta.env.PROD) return true;
@@ -24,7 +28,7 @@ async function unregisterAppWorkers() {
   const regs = await navigator.serviceWorker.getRegistrations();
   await Promise.allSettled(
     regs
-      .filter((r) => (r.active?.scriptURL ?? r.installing?.scriptURL ?? "").endsWith(SW_URL))
+      .filter((r) => (r.active?.scriptURL ?? r.installing?.scriptURL ?? "").endsWith("/sw.js"))
       .map((r) => r.unregister()),
   );
 }
@@ -36,6 +40,7 @@ export function registerAppServiceWorker() {
     return;
   }
   window.addEventListener("load", () => {
-    void navigator.serviceWorker.register(SW_URL, { scope: "/" }).catch(() => {});
+    const scope = baseUrl();
+    void navigator.serviceWorker.register(`${scope}sw.js`, { scope }).catch(() => {});
   });
 }
